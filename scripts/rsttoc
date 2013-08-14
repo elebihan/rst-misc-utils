@@ -1,0 +1,79 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+#
+# rsttoc - show table of contents of restructuredtext document
+#
+# Copyright (c) 2013 Eric Le Bihan <eric.le.bihan.dev@free.fr>
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+import locale
+
+try:
+    locale.setlocale(locale.LC_ALL, '')
+except:
+    pass
+
+from docutils.core import publish_cmdline
+from docutils import nodes, writers
+
+class TocWriter(writers.Writer):
+    def __init__(self):
+        writers.Writer.__init__(self)
+
+    def translate(self):
+        visitor = Visitor(self.document)
+        self.document.walkabout(visitor)
+        self.output = visitor.astext()
+
+class Visitor(nodes.SparseNodeVisitor):
+    def __init__(self, document):
+        nodes.SparseNodeVisitor.__init__(self, document)
+        self.body = []
+        self.section_level = 0
+        self.crumbs = []
+
+    def astext(self):
+        return ''.join(self.body)
+
+    def visit_document(self, node):
+        pass
+
+    def depart_document(self, node):
+        pass
+
+    def visit_section(self, node):
+        self.section_level += 1
+        if len(self.crumbs) < self.section_level:
+            self.crumbs.append(1)
+        else:
+            self.crumbs[self.section_level - 1] += 1
+
+    def depart_section(self, node):
+        self.section_level -= 1
+        self.crumbs = self.crumbs[:self.section_level + 1]
+
+    def visit_title(self, node):
+        outline = '.'.join(map(str, self.crumbs))
+        if len(outline) != 0:
+            outline += '  '
+        self.body.append("%s%s\n" % (outline, node.astext()))
+
+    def depart_title(self, node):
+        pass
+
+description = ("Prints the table of contents")
+publish_cmdline(writer=TocWriter(), description=description)
+
+# vim: ts=4 sts=4 sw=4 et ai
